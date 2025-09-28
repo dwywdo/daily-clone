@@ -1,28 +1,86 @@
+import { setEngine } from 'crypto';
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
 
 // Remember to rename these classes and interfaces!
 
-interface MyPluginSettings {
-	mySetting: string;
+interface DailyClonePluginSettings {
+	dailyCloneSetting: string;
 }
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
+const DEFAULT_SETTINGS: DailyClonePluginSettings = {
+	dailyCloneSetting: 'default'
 }
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+async function createDailyNotesBetweenDates(app: App, startDateAsString: string, endDateAsString: string) {
+	const startDate = new Date(startDateAsString);
+	const endDate = new Date(endDateAsString);
+
+	if (startDate > endDate) {
+		new Notice("Invalid Range");
+		return;
+	}
+	
+	const dates: string[] = [];
+	const date = new Date(startDate);
+
+	while (date <= endDate) {
+		dates.push(date.toISOString().split('T')[0]);
+		date.setDate(date.getDate() + 1);
+	}
+
+	for (const date of dates) {
+		const dailyNotePath = `${date}.md`;
+		if (!(await app.vault.adapter.exists(dailyNotePath))) {
+			await app.vault.create(dailyNotePath, `# ${date}\n`);
+		}
+	}
+
+	new Notice(`Created ${dates.length} Daily Notes`);
+}
+
+export class InputModal extends Modal {
+	constructor(app: App) {
+		super(app);
+		this.setTitle("Enter the start/end date");
+
+		let startDate = '', endDate = '';
+		new Setting(this.contentEl)
+		.setName("Start Date")
+		.addText(text => {
+				text.inputEl.type = "date";
+				text.onChange((value) => { startDate = value; });
+			}
+		);
+
+		new Setting(this.contentEl)
+		.setName("End Date")
+		.addText(text => {
+				text.inputEl.type = "date";
+				text.onChange((value) => { endDate = value; });
+			}
+		);
+
+		new Setting(this.contentEl)
+		.addButton(btn => btn.setButtonText("Enter").setCta().onClick(() => {
+			this.close();
+			createDailyNotesBetweenDates(this.app, startDate, endDate);
+		}))
+	}
+}
+
+export default class DailyClonePlugin extends Plugin {
+	settings: DailyClonePluginSettings;
 
 	async onload() {
 		await this.loadSettings();
 
 		// This creates an icon in the left ribbon.
-		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (_evt: MouseEvent) => {
+		const ribbonIconEl = this.addRibbonIcon('dice', 'Clone Daily Notes', async (_evt: MouseEvent) => {
 			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
+			new InputModal(this.app).open();
 		});
 		// Perform additional things with the ribbon
-		ribbonIconEl.addClass('my-plugin-ribbon-class');
+		ribbonIconEl.addClass('daily-clone-plugin-ribbon-class');
 
 		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
 		const statusBarItemEl = this.addStatusBarItem();
@@ -30,8 +88,8 @@ export default class MyPlugin extends Plugin {
 
 		// This adds a simple command that can be triggered anywhere
 		this.addCommand({
-			id: 'open-sample-modal-simple',
-			name: 'Open sample modal (simple)',
+			id: 'clone-daily-notes',
+			name: 'Clone Daily Notes',
 			callback: () => {
 				new SampleModal(this.app).open();
 			}
@@ -66,7 +124,7 @@ export default class MyPlugin extends Plugin {
 		});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
+		this.addSettingTab(new DailyCloneSettingTab(this.app, this));
 
 		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
 		// Using this function will automatically remove the event listener when this plugin is disabled.
@@ -107,10 +165,10 @@ class SampleModal extends Modal {
 	}
 }
 
-class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+class DailyCloneSettingTab extends PluginSettingTab {
+	plugin: DailyClonePlugin;
 
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, plugin: DailyClonePlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -125,9 +183,9 @@ class SampleSettingTab extends PluginSettingTab {
 			.setDesc('It\'s a secret')
 			.addText(text => text
 				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
+				.setValue(this.plugin.settings.dailyCloneSetting)
 				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
+					this.plugin.settings.dailyCloneSetting = value;
 					await this.plugin.saveSettings();
 				}));
 	}

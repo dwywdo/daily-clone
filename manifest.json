@@ -1,11 +1,11 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
+	"id": "daily-clone",
+	"name": "Daily Clone",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
+	"description": "A plugin that helps mass creation of daily notes, keeping your properties",
+	"author": "DWYWDO",
+	"authorUrl": "https://dwywdo.xyz/",
+	"fundingUrl": "https://dwywdo.xyz/",
 	"isDesktopOnly": false
 }
