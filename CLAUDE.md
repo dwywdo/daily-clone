@@ -4,12 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is the Daily Clone Obsidian plugin - a community plugin that helps users mass create daily notes between specified date ranges. The plugin integrates with Templater to apply templates and creates a series of daily note files with configurable content structure.
+This is the Daily Clone Obsidian plugin - a community plugin that helps users mass create daily notes between specified date ranges. The plugin allows users to create multiple daily notes with customizable templates, filename formats, and folder locations.
 
 **Key Features:**
 - Mass creation of daily notes with date range selection
-- Integration with Templater plugin for template application
-- Date validation and user feedback
+- Template file integration for consistent note structure
+- Configurable filename formats using moment.js
+- Flexible folder placement with intelligent suggestions
 - Mobile-compatible design
 
 ## Development Commands
@@ -18,89 +19,120 @@ This is the Daily Clone Obsidian plugin - a community plugin that helps users ma
 - `npm run dev` - Development build with file watching and inline sourcemaps
 - `npm run build` - Production build (minified, no sourcemaps, TypeScript type checking)
 - `npm run version` - Bump version in manifest.json and update versions.json
-- `eslint main.ts` - Lint the main TypeScript file (requires global eslint installation)
+- `eslint src/` - Lint all TypeScript files (requires global eslint installation)
 
-## Architecture
+## Modular Architecture
 
-**Entry Point**: `main.ts` compiles to `main.js` using esbuild bundler
+**Entry Point**: `src/main.ts` compiles to `main.js` using esbuild bundler
 
-**Core Components:**
-- `DailyClonePlugin` - Main plugin class extending Obsidian's Plugin base class
-- `InputModal` - Modal dialog for date range input with HTML5 date pickers
-- `DailyCloneSettingTab` - Settings interface (currently basic implementation)
-- `createDailyNotesBetweenDates()` - Core function that generates daily note files and integrates with Templater
-- `SampleModal` - Legacy modal (should be cleaned up)
+### File Structure
+```
+src/
+├── main.ts                 # Main plugin class (40 lines)
+├── types.ts               # TypeScript interfaces and type definitions
+├── settings/
+│   ├── index.ts          # Settings defaults and exports
+│   └── settingsTab.ts    # Settings UI implementation
+├── ui/                   
+│   ├── modals.ts         # InputModal for date range selection
+│   └── suggests.ts       # FolderSuggest and FileSuggest components
+└── core/
+    └── dailyNotes.ts     # Daily note creation logic
+```
 
-**Plugin Integration:**
-- Templater plugin integration via `app.plugins.plugins["templater-obsidian"]`
-- Accesses Templater settings for folder templates configuration
-- Uses Obsidian's vault API for file creation and existence checking
+### Module Responsibilities
 
-## Current Implementation Issues
+**`src/main.ts`** (Plugin Lifecycle)
+- Plugin initialization and cleanup
+- Command and ribbon icon registration
+- Settings management coordination
 
-The code contains several issues that should be addressed:
-- Line 1: Unused import `setEngine` from crypto
-- Line 100: References `SampleModal` instead of `InputModal` in clone-daily-notes command
-- Lines 104-142: Sample plugin code that should be removed (unused commands, intervals, DOM events)
-- Lines 158-172: Unused `SampleModal` class
-- Lines 38-46: Debug console.log statements accessing Templater settings
-- Settings implementation is placeholder and needs proper configuration
+**`src/types.ts`** (Type Definitions)
+- `DailyClonePluginSettings` interface
+- `DailyClonePlugin` interface for type safety
+- Shared type definitions across modules
+
+**`src/settings/`** (Settings Management) 
+- Default settings configuration
+- Settings UI with folder/file suggestions
+- Moment.js format validation and preview
+
+**`src/ui/`** (User Interface Components)
+- `InputModal`: Date range selection with HTML5 date pickers
+- `FolderSuggest`: Intelligent folder path completion
+- `FileSuggest`: Template file search and selection
+
+**`src/core/`** (Business Logic)
+- `createDailyNotesBetweenDates()`: Main daily note creation function
+- Template content processing
+- File existence checking and creation
+- Error handling and user feedback
 
 ## Build System
 
 - **Bundler**: esbuild (config in `esbuild.config.mjs`)
+- **Entry Point**: `src/main.ts` (updated from root `main.ts`)
 - **Target**: ES2018, CommonJS format for Obsidian compatibility
 - **External Dependencies**: Obsidian API, Electron, and CodeMirror modules marked as external
 - **Development**: Watch mode with inline sourcemaps
 - **Production**: Minified output with tree shaking
 
-## File Structure
-
-```
-daily-clone/
-├── main.ts           # Main plugin logic (needs refactoring)
-├── manifest.json     # Plugin metadata
-├── package.json      # Dependencies and scripts
-├── tsconfig.json     # TypeScript configuration
-├── esbuild.config.mjs # Build configuration
-├── styles.css        # Plugin styles
-├── versions.json     # Version compatibility mapping
-└── version-bump.mjs  # Version management script
-```
-
 ## Development Guidelines
 
-**Code Organization:**
-- All logic currently in single `main.ts` file - consider splitting into modules for better maintainability
-- Remove unused sample plugin code before adding new features
-- Follow TypeScript strict mode conventions
+### Code Organization
+- **Separation of Concerns**: Each module has a single, well-defined responsibility
+- **Type Safety**: All modules use proper TypeScript interfaces
+- **Clean Dependencies**: No circular imports, clear module boundaries
+- **Maintainability**: Small, focused files (average 50-100 lines)
 
-**Plugin API Usage:**
-- Uses `this.addRibbonIcon()` for UI integration
-- Uses `this.addCommand()` for command palette integration
-- Uses `app.vault.create()` and `app.vault.adapter.exists()` for file operations
-- Integrates with external plugins via `app.plugins.plugins` registry
+### Plugin API Usage
+- **Commands**: Registered in `main.ts`, implemented in UI modules
+- **Settings**: Managed through dedicated settings module
+- **File Operations**: Centralized in core module with proper error handling
+- **UI Components**: Reusable suggestion components for consistent UX
 
-**Testing:**
-- Manual testing: Copy `main.js`, `manifest.json`, `styles.css` to `.obsidian/plugins/daily-clone/`
-- Reload Obsidian and enable plugin in Community plugins settings
-- Test date range functionality and Templater integration
+### Adding New Features
+1. **Types**: Add interfaces to `src/types.ts`
+2. **Settings**: Extend settings interface and UI if needed
+3. **Core Logic**: Implement business logic in `src/core/`
+4. **UI Components**: Create reusable components in `src/ui/`
+5. **Integration**: Wire up in `src/main.ts`
 
 ## Key Implementation Details
 
-**Date Handling:**
-- Uses HTML5 date inputs for cross-platform compatibility
-- Validates date ranges (start ≤ end)
-- Generates ISO date strings in YYYY-MM-DD format
-- Iterates through date range day by day
+### Daily Note Creation Process
+1. **Input Validation**: Date range validation with user feedback
+2. **Folder Management**: Automatic folder creation if specified path doesn't exist
+3. **Template Processing**: Optional template file content application
+4. **Filename Generation**: Moment.js-based filename formatting
+5. **Conflict Resolution**: Skip existing files, report creation/skip counts
 
-**File Creation:**
-- Creates files in vault root with `YYYY-MM-DD.md` naming convention
-- Checks for existing files before creation to avoid overwriting
-- Adds basic heading with date as initial content
-- Provides user feedback via Notice API
+### Suggestion Components
+- **FolderSuggest**: Lists all vault folders with fuzzy search
+- **FileSuggest**: Searches all files by name and path
+- **Event Handling**: Proper onChange event triggering for settings persistence
+- **UX**: Clean, consistent dropdown display with full paths
 
-**Templater Integration:**
-- Accesses Templater plugin settings for folder template configuration
-- Currently logs debug information about Templater settings
-- Integration is experimental and needs proper error handling
+### Settings Architecture
+- **Type Safety**: Strongly typed settings interface
+- **Persistence**: Automatic save/load with proper defaults
+- **UI Integration**: Real-time validation and preview
+- **Extensibility**: Easy to add new settings without breaking existing functionality
+
+## Testing
+
+### Manual Testing Process
+1. Build the plugin: `npm run build`
+2. Copy artifacts to `.obsidian/plugins/daily-clone/`: `main.js`, `manifest.json`, `styles.css`
+3. Reload Obsidian and enable plugin
+4. Test core functionality:
+   - Date range selection via ribbon icon or command palette
+   - Settings persistence across reloads
+   - Template file integration
+   - Folder suggestion and creation
+
+### Development Testing
+- Use `npm run dev` for hot reloading during development
+- Check browser console for any TypeScript or runtime errors
+- Verify all suggestion components work correctly
+- Test edge cases: invalid dates, missing templates, folder creation
