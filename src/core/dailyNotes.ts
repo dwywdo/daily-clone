@@ -13,34 +13,35 @@ export async function createDailyNotesBetweenDates(
 ): Promise<void> {
 	const startDate = new Date(startDateAsString);
 	const endDate = new Date(endDateAsString);
-
 	if (startDate > endDate) {
 		new Notice("Invalid date range: start date must be before or equal to end date");
+		return;
+	}
+
+	const templaterPlugin = (app as any).plugins.plugins["templater-obsidian"]?.templater?.current_functions_object
+	if (!templaterPlugin) {
+		new Notice(`Templater is not installed`)
 		return;
 	}
 
 	// Ensure folder exists
 	const folder = settings.dailyNoteFolder || "/";
 	if (folder !== "/" && !(await app.vault.adapter.exists(folder))) {
-		try {
-			await app.vault.createFolder(folder);
-		} catch (error) {
-			new Notice(`Failed to create folder: ${folder}`);
-			return;
-		}
+		new Notice(`There's no '${folder}'`)
+		return
 	}
 
 	// Load template content if specified
-	let templateContent = "";
-	if (settings.dailyNoteTemplate) {
-		try {
-			const templateFile = app.vault.getAbstractFileByPath(settings.dailyNoteTemplate);
-			if (templateFile && templateFile instanceof TFile) {
-				templateContent = await app.vault.read(templateFile);
-			}
-		} catch (error) {
-			console.warn("Could not load template:", error);
-		}
+	if (!settings.dailyNoteTemplate) {
+		new Notice("Template is not configured.")
+		return
+	}
+
+	try {
+		app.vault.getAbstractFileByPath(settings.dailyNoteTemplate);
+	} catch (error) {
+		new Notice(`Could not load template: ${settings.dailyNoteTemplate}`)
+		return
 	}
 
 	// Generate files for date range
@@ -59,16 +60,12 @@ export async function createDailyNotesBetweenDates(
 			if (await app.vault.adapter.exists(filePath)) {
 				skippedCount++;
 			} else {
-				// Determine content
-				let content = templateContent;
-				if (!content) {
-					// Default content with date heading
-					const dateString = moment(currentDate).format("YYYY-MM-DD");
-					content = `# ${dateString}\n\n`;
-				}
-
-				// Create the file
-				await app.vault.create(filePath, content);
+				templaterPlugin.file.create_new(
+					templaterPlugin.file.find_tfile(settings.dailyNoteTemplate), 
+					filename,
+					false,
+					settings.dailyNoteFolder
+				)
 				createdCount++;
 			}
 		} catch (error) {
